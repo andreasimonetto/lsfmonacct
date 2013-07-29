@@ -2,7 +2,7 @@
 LSF monitoring & accounting
 ===========================
 
-![Sample plot](web/image/sample.png)
+![Sample plot](https://raw.github.com/andreasimonetto/lsfmonacct/master/web/images/sample.png)
 
 Backend
 -------
