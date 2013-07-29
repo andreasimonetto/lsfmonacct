@@ -31,8 +31,8 @@ of your LSF hosts, called `.hostsinfo.json` and having the following format:
 
 ```JSON
 {
-    "host1": { "ncores": hostCoresNumber, "hs06": hostHepspec, "nslots": hostLsfSlots },
-    "host2": { "ncores": hostCoresNumber, "hs06": hostHepspec, "nslots": hostLsfSlots },
+    "hostname1": { "ncores": CoresNumber, "hs06": HepspecVal, "nslots": LsfSlots },
+    "hostname2": { "ncores": CoresNumber, "hs06": HepspecVal, "nslots": LsfSlots },
     ...
 }
 ```
