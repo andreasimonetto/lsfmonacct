@@ -64,8 +64,11 @@ where:
 * *n* is a positive inter
 
 We also have the following rules, as sintactic sugar:
-* /Type/Queue/... => /Type/all/Queue/...
-* /Type/Period... => /Type/all/all/Period... 
+
+```
+/Type/Queue/... => /Type/all/Queue/...
+/Type/Period... => /Type/all/all/Period... 
+```
 
 Create Apache Virtual Host (it must be at least accessible from the server host, for
 example unsing an entry in `/etc/hosts`). In this example the host name is
