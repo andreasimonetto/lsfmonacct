@@ -22,7 +22,7 @@ you need to setup at least a basic [Graphite](http://graphite.readthedocs.org/) 
 Then you need Python support for LSF:
 * git submodule init
 * git submodule update
-* cd pylsf/
+* Enter in `pylsf/` subfolder
 * Follow compilation and installation instructions
 
 For the last prerequisite (and only for accounting) you need to create a [JSON](http://www.json.org/)
@@ -43,12 +43,14 @@ otherwise it's locally submitted. This is an internal convention and maybe diffe
 
 ### URL API
 
-Apache Virtual Host `/etc/hosts`
+Create Apache Virtual Host (it must be at least accessible from the server host, for
+example unsing an entry in `/etc/hosts`). In this example the host name is
+`graphite.mysite.com`:
 
 ```ApacheConf
 # Graphite Web Basic mod_wsgi vhost
 <VirtualHost *:80>
-    ServerName graphite-farm.cr.cnaf.infn.it
+    ServerName graphite.mysite.com
     DocumentRoot "/usr/share/graphite/webapp"
     ErrorLog /var/log/httpd/graphite-web-error.log
     CustomLog /var/log/httpd/graphite-web-access.log common
@@ -67,15 +69,40 @@ Apache Virtual Host `/etc/hosts`
 </VirtualHost>
 ```
 
-`common.inc.php`
+Personalize `common.inc.php` with your installation parameters, for example:
 
 ```PHP
 $WHISPER_DIR = "/var/lib/carbon/whisper/monitoring/";
-$GRAPHITE_BASE_URL = "http://graphite-farm.cr.cnaf.infn.it";
+$GRAPHITE_BASE_URL = "http://graphite.mysite.com";
 $GRAPH_DEFAULT_SIZE = "800x600";
 ```
 
 Frontend
 --------
 
-Awk awk awk
+The frontend is a web interface that uses the URL API in order to display
+time series plots. To use it, you have to:
+
+* Configure URL API backend
+* Download latest jQuery 2.x from http://jquery.com/
+* Uncompress it in `web/js` project's subfolder
+* Create symbolic link jquery.js -> jquery
+* Download latest non-commercial jQWigets 2.x from http://www.jqwidgets.com/
+* Uncompress and copy the `jqwidgets/` directory in `web/js` project's subfolder
+
+Finally create a Virtual Host for the fontend. In this example the project root 
+is `/opt/lsfmonacct/` and the host name is `lsfmonacct.mysite.com`:
+
+```ApacheConf
+<VirtualHost *:80>
+    ServerName lsfmonacct.mysite.com
+    DocumentRoot "/opt/lsfmonacct/web"
+
+    <Directory "/opt/lsfmonacct/web">
+        Options Indexes FollowSymLinks
+        AllowOverride All
+        Order allow,deny
+        Allow from all
+    </Directory>
+</VirtualHost>
+```

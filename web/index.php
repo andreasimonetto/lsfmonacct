@@ -8,7 +8,7 @@ $queues_js = '['. implode(',', array_map(function($v) { return "{label: '".ucfir
 "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-<title>Monitoring &amp; accounting @ Tier1</title>
+<title>LSF monitoring &amp; accounting</title>
 <link rel="stylesheet" href="js/jqwidgets/styles/jqx.base.css" type="text/css" />
 <!-- link rel="stylesheet" href="js/jqwidgets/styles/jqx.ui-lightness.css" type="text/css" / -->
 <link rel="stylesheet" href="css/style.css" type="text/css" />
@@ -231,7 +231,7 @@ $(document).ready(function () {
             _periodChanged = false;
         }
 
-        document.getElementById('header-title').textContent = 'Monitoring @ Tier1';
+        document.getElementById('header-title').textContent = 'LSF monitoring';
         $("#unit-selector").jqxDropDownList('selectIndex', 0);
     });
 
@@ -253,7 +253,7 @@ $(document).ready(function () {
             _periodChanged = false;
         }
 
-        document.getElementById('header-title').textContent = 'Accounting @ Tier1';
+        document.getElementById('header-title').textContent = 'LSF accounting';
         $("#unit-selector").jqxDropDownList('selectIndex', 0);
     });
 
