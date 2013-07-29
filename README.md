@@ -7,9 +7,9 @@ Backend
 
 The backend is composed of two parts, to follow Graphite's model/view pattern. The first
 part consist of data gathering (using LSF API through PyLSF) and Carbon feeding, the second
-one is an URL API to query the time series. While the former is mandatory, the latter isn't,
-because you can directly use Graphite's Webapp. However, in order to use the frontend, you
-also need the URL APIs.
+one consist of an URL API to query the time series. While the former is mandatory, the latter
+isn't, because you can directly use Graphite's Webapp. However, in order to use the frontend,
+you also need the URL APIs.
 
 ### Data gathering
 
@@ -42,6 +42,16 @@ when the `fromHost` field of the job begins with the string "ce", then the job's
 otherwise it's locally submitted. This is an internal convention and maybe different for other sites.
 
 ### URL API
+
+<table>
+<tr><td>Resource</td><td>::=</td><td>/Type/Submit/Queue/Period.Unit[-WxH].Format</td></tr>
+<tr><td>Type</td><td>::=</td><td>monitoring | accounting</td></tr>
+<tr><td>Submit</td><td>::=</td><td>grid | local | all</td></tr>
+<tr><td>Queue</td><td>::=</td><td>queue[*] | each | all</td></tr>
+<tr><td>Period</td><td>::=</td><td>date[-date] | nh | nd | nw | day | week | month | year</td></tr>
+<tr><td>Unit</td><td>::=</td><td>jobs | efficiency | sec | hs06 | pledge</td></tr>
+<tr><td>Format</td><td>::=</td><td>png | json | csv | raw</td></tr>
+</table>
 
 Create Apache Virtual Host (it must be at least accessible from the server host, for
 example unsing an entry in `/etc/hosts`). In this example the host name is
@@ -80,7 +90,7 @@ $GRAPH_DEFAULT_SIZE = "800x600";
 Frontend
 --------
 
-The frontend is a web interface that uses the URL API in order to display
+The frontend consist of a web interface that uses the URL API in order to display
 time series plots. To use it, you have to:
 
 * Configure URL API backend
