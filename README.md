@@ -31,14 +31,14 @@ of your LSF hosts, called `.hostsinfo.json` and having the following format:
 
 ```JSON
 {
-    "hostname1": { "ncores": CoresNumber, "hs06": HepspecVal, "nslots": LsfSlots },
-    "hostname2": { "ncores": CoresNumber, "hs06": HepspecVal, "nslots": LsfSlots },
+    "hostname1": { "hs06": HepspecVal, "ncores": CoresNumber, "nslots": LsfSlots },
+    "hostname2": { "hs06": HepspecVal, "ncores": CoresNumber, "nslots": LsfSlots },
     ...
 }
 ```
 
-*Important*: in order to decide if a job is locally or Grid submitted, we use the assumption that when
-the `fromHost` field of the job begins with the string "ce", then the job's submit type is Grid,
+**Important**: in order to decide if a job is locally or Grid submitted, we use the assumption that
+when the `fromHost` field of the job begins with the string "ce", then the job's submit type is Grid,
 otherwise it's locally submitted. This is an internal convention and maybe different for your site.
 
 ### URL API
