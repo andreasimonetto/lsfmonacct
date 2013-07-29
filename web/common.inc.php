@@ -1,7 +1,7 @@
 <?php
 
 $WHISPER_DIR = "/var/lib/carbon/whisper/monitoring/";
-$GRAPHITE_BASE_URL = "http://graphite-farm.cr.cnaf.infn.it";
+$GRAPHITE_BASE_URL = "http://graphite.mysite.com";
 $GRAPH_DEFAULT_SIZE = "800x600";
 
 function getvar_default($a, $k, $default)

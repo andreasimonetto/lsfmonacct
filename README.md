@@ -2,6 +2,8 @@
 LSF monitoring & accounting
 ===========================
 
+![Sample plot](web/image/sample.png)
+
 Backend
 -------
 
