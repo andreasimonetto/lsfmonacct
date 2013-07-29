@@ -43,15 +43,15 @@ otherwise it's locally submitted. This is an internal convention and maybe diffe
 
 ### URL API
 
-<table style="margin: 0 0 0 0; padding: 0 0 0 0; border-style: none;">
-<tr><td>Resource</td><td>::=</td><td>/Type/Submit/Queue/Period.Unit[-WxH].Format</td></tr>
-<tr><td>Type</td><td>::=</td><td>monitoring | accounting</td></tr>
-<tr><td>Submit</td><td>::=</td><td>grid | local | all</td></tr>
-<tr><td>Queue</td><td>::=</td><td>queue[*] | each | all</td></tr>
-<tr><td>Period</td><td>::=</td><td>date[-date] | nh | nd | nw | day | week | month | year</td></tr>
-<tr><td>Unit</td><td>::=</td><td>jobs | efficiency | sec | hs06 | pledge</td></tr>
-<tr><td>Format</td><td>::=</td><td>png | json | csv | raw</td></tr>
-</table>
+```
+Resource ::= /Type/Submit/Queue/Period.Unit[-WxH].Format
+Type     ::= monitoring | accounting
+Submit   ::= grid | local | all
+Queue    ::= queue[*] | each | all
+Period   ::= date[-date] | nh | nd | nw | day | week | month | year
+Unit     ::= jobs | efficiency | sec | hs06 | pledge
+Format   ::= png | json | csv | raw
+```
 
 Create Apache Virtual Host (it must be at least accessible from the server host, for
 example unsing an entry in `/etc/hosts`). In this example the host name is
