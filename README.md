@@ -42,7 +42,7 @@ that are:
 * LSF log directory (mandatory)
 * List of dates to look for (optional, if omitted look for yesterday finished jobs)
 
-**Important**: in order to decide if a job is locally or Grid submitted, we make the assumption that
+**Important**: in order to decide if a job is locally or Grid submitted, we make the following assumption:
 when the `fromHost` field of the job begins with the string "ce", then the job's submit type is Grid,
 otherwise it's locally submitted. This is an internal convention and maybe different for other sites.
 
@@ -75,12 +75,12 @@ We also have the following rules, as syntactic sugar:
 /Type/Period... => /Type/all/all/Period... 
 ```
 
-Create Apache Virtual Host (it must be at least accessible from the server host, for
-example unsing an entry in `/etc/hosts`). In this example the host name is
+Create Apache Virtual Host (it must be at least accessible from the server itself, for
+example using an entry in `/etc/hosts`). In this example the host name is
 `graphite.mysite.com`:
 
 ```ApacheConf
-# Graphite Web Basic mod_wsgi vhost
+# Graphite Webapp using mod_wsgi
 <VirtualHost *:80>
     ServerName graphite.mysite.com
     DocumentRoot "/usr/share/graphite/webapp"
@@ -133,8 +133,8 @@ The frontend consist of a web interface (`web/index.php`) that uses the
 URL API in order to display time series plots. To use it, you have to:
 
 * Configure URL API backend
-* Download latest jQuery 2.x from http://jquery.com/
+* Download the latest jQuery 2.x from http://jquery.com/
 * Uncompress it in `web/js` project's subfolder
-* Create symbolic link jquery.js -> jquery
-* Download latest non-commercial jQWigets 2.x from http://www.jqwidgets.com/
+* Create symbolic link <jquery-you-download.js> -> jquery
+* Download the latest non-commercial jQWigets 2.x from http://www.jqwidgets.com/
 * Uncompress and copy the `jqwidgets/` directory in `web/js` project's subfolder
