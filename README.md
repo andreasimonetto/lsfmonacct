@@ -43,7 +43,7 @@ otherwise it's locally submitted. This is an internal convention and maybe diffe
 
 ### URL API
 
-<table>
+<table style="margin: 0 0 0 0; padding: 0 0 0 0; border-style: none;">
 <tr><td>Resource</td><td>::=</td><td>/Type/Submit/Queue/Period.Unit[-WxH].Format</td></tr>
 <tr><td>Type</td><td>::=</td><td>monitoring | accounting</td></tr>
 <tr><td>Submit</td><td>::=</td><td>grid | local | all</td></tr>
