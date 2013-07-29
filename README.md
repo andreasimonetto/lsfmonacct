@@ -1,3 +1,4 @@
+
 LSF monitoring & accounting
 ===========================
 
@@ -5,7 +6,7 @@ Backend
 -------
 
 The backend is composed of two parts, to follow Graphite's model/view pattern. The first
-part consist of data gathering (using LSF API throug PyLSF) and Carbon feeding, the second
+part consist of data gathering (using LSF API through PyLSF) and Carbon feeding, the second
 one is an URL API to query the time series. While the former is mandatory, the latter isn't,
 because you can directly use Graphite's Webapp. However, in order to use the frontend, you
 also need the URL APIs.
