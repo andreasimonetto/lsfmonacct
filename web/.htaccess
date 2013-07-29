@@ -1,0 +1,5 @@
+RewriteEngine on
+
+RewriteRule ^(monitoring|accounting)/(grid|local|all)/([\w]+\*?)/(\d{8}\d*(-\d{8}\d*)?|\d+[hdw]|day|week|month|year)\.(jobs|efficiency|sec|hs06|pledge)(-\d+x\d+)?\.(png|json|csv|raw)$ api.php?args=$1,$2,$3,$4,$6,$8&size=$7 [L]
+RewriteRule ^(monitoring|accounting)/([\w]+\*?)/(\d{8}\d*(-\d{8}\d*)?|\d+[hdw]|day|week|month|year)\.(jobs|efficiency|sec|hs06|pledge)(-\d+x\d+)?\.(png|json|csv|raw)$ api.php?args=$1,all,$2,$3,$5,$7&size=$6 [L]
+RewriteRule ^(monitoring|accounting)/(\d{8}\d*(-\d{8}\d*)?|\d+[hdw]|day|week|month|year)\.(jobs|efficiency|sec|hs06|pledge)(-\d+x\d+)?\.(png|json|csv|raw)$ api.php?args=$1,all,all,$2,$4,$6&size=$5 [L]

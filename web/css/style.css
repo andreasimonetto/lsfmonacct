@@ -1,0 +1,43 @@
+#form {
+    width: 250px;
+    height: 758px;
+}
+
+.expander {
+    margin-top: 8px;
+}
+
+.expander-title {
+    font-weight: bold;
+}
+
+.expander-inside-text {
+    padding: 10px 0 6px 4px;
+}
+
+.expander-inside-selector {
+    padding: 0 0 6px 0;
+}
+
+.expander-inside-dropdown {
+    padding: 10px 4px 10px 4px;
+}
+
+.format-button {
+    width: 95%;
+    text-align: right;
+}
+
+.format-button img {
+    width: 40px;
+    height: 40px;
+    margin: 0 0 0 10px;
+}
+
+/*
+#graph-wrapper {
+    float: none;
+    clear: both;
+    display: clear;
+}
+*/
