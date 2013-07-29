@@ -14,8 +14,8 @@ Then you need Python support for LSF:
 * Follow compilation and installation instructions
 
 For the last prerequisite (only for monitoring_update) you need to create a JSON file 
-with the HEP performance information of your hosts, called `.hostsinfo.json`, having
-the following format:
+with the HEP performance information of your LSF hosts, called `.hostsinfo.json` and
+having the following format:
 
     {
         "host1": { "ncores": host1_cores_number, "hs06": host1_total_hepspec06, "nslots": host1_lsf_slots },
