@@ -1,0 +1,45 @@
+#!/usr/bin/python
+# 
+# Update queues pledges (in HS06) for a given year
+#
+# Copyright (C) 2013 Andrea Simonetto - andrea.simonetto@cnaf.infn.it
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import os, sys, time, calendar
+from datetime import datetime
+from CarbonClient import CarbonClient
+
+program_name = 'pledge_update'
+program_dir = os.path.dirname(os.path.abspath(__file__)).rstrip(os.sep)
+carbon_server = '127.0.0.1'
+carbon_port = 2003
+
+# Read arguments from command line
+if len(sys.argv) != 4:
+    sys.stderr.write('%(program_name)s: missing parameters.\nUsage: %(program_name)s <year> <queue> <pledge-hs06>\n' % { 'program_name' : program_name })
+    sys.exit(1)
+
+year_str, queue, pledge_str = sys.argv[1:4]
+
+# Connect to carbon
+try:
+    carbon = CarbonClient(carbon_server, carbon_port)
+except:
+    print "Couldn't connect to %(server)s on port %(port)d, is carbon-agent.py running?" % { 'server': carbon_server, 'port': carbon_port }
+    sys.exit(2)
+
+# Carbon insertion
+carbon.insert('pledge.%s.hs06' % queue, float(pledge_str), calendar.timegm(datetime(int(year_str), 1, 1).timetuple()))

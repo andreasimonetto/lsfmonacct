@@ -1,0 +1,3 @@
+[submodule "pylsf"]
+	path = pylsf
+	url = https://github.com/gmccance/pylsf

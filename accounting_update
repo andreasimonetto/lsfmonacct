@@ -1,0 +1,168 @@
+#!/usr/bin/python
+# 
+# Update time series associated with (yesterday) LSF accounting
+#
+# Copyright (C) 2013 Andrea Simonetto - andrea.simonetto@cnaf.infn.it
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import re, os, sys, calendar, json
+from pytz import timezone
+from datetime import datetime, timedelta
+from lockfile import FileLock
+from pylsf import lsb_init, lsb_queueinfo
+from accounting import AcctFile, JobFinishEvent
+from CarbonClient import CarbonClient
+
+program_name = 'accounting_update'
+program_dir = os.path.dirname(os.path.abspath(__file__)).rstrip(os.sep)
+hostsinfo = program_dir + os.sep + '.hostsinfo.json'
+carbon_server = '127.0.0.1'
+carbon_port = 2003
+
+# Receive from command line the logdir of LSF
+# (usually /usr/share/lsf/work/<site>/logdir)
+if len(sys.argv) < 2:
+    sys.stdout.write('%s: missing LSF logfile directory path\n' % program_name)
+    sys.stdout.write('Usage: %s <LSF-logdir> [YYYYmmdd, ...]\n' % program_name)
+    sys.exit(1)
+
+# Read the list of LSF generated logfiles (in the order: lsb.acct, lsb.acct.1, ..., lsb.acct.9, lsb.acct.10, ...)
+lsf_logdir = sys.argv[1].rstrip(os.sep)
+acct_logs = ['lsb.acct'] + sorted(filter(lambda f: re.match(r'lsb\.acct\.[0-9]+', f), os.listdir(lsf_logdir)), lambda f1, f2: cmp(int(f1[9:]), int(f2[9:])))
+
+# Connect to LSF
+if(lsb_init(program_name) < 0):
+    sys.stdout.write('%s: unable to connect to LSF\n' % program_name)
+    sys.exit(2)
+
+# Connect to carbon
+try:
+    carbon = CarbonClient(carbon_server, carbon_port)
+except:
+    sys.stdout.write("%s: Couldn't connect to %s on port %d, is carbon-cache running?\n" % (program_name, carbon_server, carbon_port))
+    sys.exit(3)
+
+# Lock, acquire info from, and unlock hosts file
+hostsinfo_lock = FileLock(hostsinfo)
+hostsinfo_lock.acquire()
+with open(hostsinfo, 'rt') as f:
+    hosts_acct_info = json.loads(f.read())
+hostsinfo_lock.release()
+
+# Determine dates
+if len(sys.argv) >= 3:
+    dates = []
+    for date_str in sys.argv[2:]:
+        dates.append(datetime.strptime(date_str, "%Y%m%d"))
+else:
+    dates = [ datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0) ]
+
+localzone = timezone('Europe/Rome')
+for today_utc in dates:
+    # Generate timestamps corresponding to midnight of today and yesterday
+    today = today_utc - localzone.utcoffset(today_utc)
+    yesterday_utc = today_utc - timedelta(days=1)
+    yesterday = today - timedelta(days=1)
+    
+    # Iterate over accounting files
+    done = False
+    
+    # Initialize accounting data structure for each queue
+    acct = {'local' : {}, 'grid' : {}}
+    for queue_info in lsb_queueinfo():
+        for st in acct:
+            acct[st][queue_info[0]] = {
+                'njobs' : 0,
+                'ndone' : 0,
+                'cpt'   : { 'sec' : 0, 'hs06'  : 0 },
+                'wct'   : { 'sec' : 0, 'hs06'  : 0 },
+            }
+    
+    # Perform LSF query (this may take some time due to LSF server's load)
+    for acct_log in acct_logs:
+        try:
+            # Open the file and iterate over it using the AcctFile object
+            with open(lsf_logdir + os.sep + acct_log, 'r') as acct_file:
+                for job_acct in AcctFile(acct_file):
+                    if job_acct.eventTime < yesterday:
+                        # If this record has finished before yesterday, this is the last file to check
+                        done = True
+                        continue
+                    elif job_acct.eventTime >= today:
+                        # If this is an account record of a today, skip
+                        continue
+    
+                    # If "from host" field begins with "ce", then we consider the job as coming from grid
+                    submit_type = 'grid' if re.match(r'^ce.+', job_acct.fromHost) else 'local'
+    
+                    #
+                    for st in acct:
+                        # job_acct is a JobFinishEvent object that has an attribute for each value in the LSB entry
+                        if not job_acct.queue in acct[st]:
+                            acct[st][job_acct.queue] = {
+                                'njobs' : 0,
+                                'ndone' : 0,
+                                'cpt'   : { 'sec' : 0, 'hs06'  : 0 },
+                                'wct'   : { 'sec' : 0, 'hs06'  : 0 },
+                            }
+    
+                    # Increment number of jobs
+                    acct[submit_type][job_acct.queue]['njobs'] += 1
+    
+                    # Job status. The number 32 represents EXIT, 64 represents DONE.
+                    if job_acct.jStatus == 64:
+                        acct[submit_type][job_acct.queue]['ndone'] += 1
+    
+                    # Determine HepSpec06 corresponding to job's CPU and Wall Clock times
+                    cpt_hs06 = wct_hs06 = 0
+                    cpt = job_acct.utime + job_acct.stime
+                    wct = job_acct.runTime
+                    cpt_sec = cpt.days * 86400 + cpt.seconds
+                    wct_sec = wct.days * 86400 + wct.seconds
+                    for host in job_acct.execHosts:
+                        try:
+                            host_hs06 = hosts_acct_info[host]['hs06']
+                            host_nslots = hosts_acct_info[host]['nslots']
+                            host_ncores = hosts_acct_info[host]['ncores']
+    
+                            # We use this formula in order to determine HepSpec06
+                            cpt_hs06 += cpt_sec * host_hs06 / host_ncores / 86400
+                            wct_hs06 += wct_sec * host_hs06 / host_nslots / 86400
+                        except KeyError:
+                            sys.stderr.write('%s: Warning: host info for "%s" not found\n' % (program_name, host))
+    
+                    # Increment accounted quantities
+                    acct[submit_type][job_acct.queue]['cpt']['sec'] += cpt_sec
+                    acct[submit_type][job_acct.queue]['cpt']['hs06'] += cpt_hs06
+                    acct[submit_type][job_acct.queue]['wct']['sec'] += wct_sec
+                    acct[submit_type][job_acct.queue]['wct']['hs06'] += wct_hs06
+            if done:
+                break;
+        except IOError as e:
+            sys.stderr.write('%s: %s\n' % (program_name, str(e)))
+    
+    # Carbon insertion
+    yesterday_ts = calendar.timegm(yesterday_utc.timetuple())
+    for submit_type in acct:
+        for (queue, queue_acct) in acct[submit_type].iteritems():
+            njobs = queue_acct['njobs']
+            carbon.insert('accounting.%s.%s.njobs'    % (queue, submit_type), njobs, yesterday_ts)
+            carbon.insert('accounting.%s.%s.ndone'    % (queue, submit_type), queue_acct['ndone'], yesterday_ts)
+            carbon.insert('accounting.%s.%s.cpt.sec'  % (queue, submit_type), queue_acct['cpt']['sec'], yesterday_ts)
+            carbon.insert('accounting.%s.%s.cpt.hs06' % (queue, submit_type), queue_acct['cpt']['hs06'], yesterday_ts)
+            carbon.insert('accounting.%s.%s.wct.sec'  % (queue, submit_type), queue_acct['wct']['sec'], yesterday_ts)
+            carbon.insert('accounting.%s.%s.wct.hs06' % (queue, submit_type), queue_acct['wct']['hs06'], yesterday_ts)
+    

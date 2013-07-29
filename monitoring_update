@@ -1,0 +1,203 @@
+#!/usr/bin/python
+#
+# Update time series associated with monitoring of LSF queues
+#
+# Copyright (C) 2013 Andrea Simonetto - andrea.simonetto@cnaf.infn.it
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import os, sys, re, stat, time
+from pylsf import lsb_init, lsb_queueinfo, job_status, lsb_openjobinfo, lsb_readjobinfo, lsb_closejobinfo
+from CarbonClient import CarbonClient
+
+# lsb_readjobinfo() returns a list of lists for each job containing:
+#   0 - jobId
+#   1 - user
+#   2 - status
+#   3 - jobPid
+#   4 - submitTime
+#   5 - reserveTime
+#   6 - startTime
+#   7 - predictedStartTime
+#   8 - endTime
+#   9 - lastEvent
+#  10 - nextEvent
+#  11 - duration
+#  12 - cpuTime
+#  13 - umask
+#  14 - cwd
+#  15 - subHomeDir
+#  16 - fromHost
+#  17 - [ ExHosts ]
+#  18 - cpuFactor
+#  19 - [ 0 - jobName
+#         1 - queue
+#         2 - AskedHosts
+#         3 - resReq
+#         4 - hostSpec
+#         5 - numProcessors
+#         6 - dependCond
+#         7 - beginTime
+#         8 - termTime
+#         9 - sigValue
+#        10 - inFile
+#        11 - outFile
+#        12 - errFile
+#        13 - command
+#        14 - chkpntPeriod
+#        15 - preExecCmd
+#        16 - mailUser
+#        17 - projectName
+#        18 - maxNumProcessors
+#        19 - loginShell
+#        20 - userGroup
+#        21 - exceptList
+#        22 - userPriority
+#        23 - rsvId
+#        24 - jobGroup
+#        25 - sla
+#        26 - extsched
+#        27 - warningTimePeriod
+#        28 - warningAction
+#        29 - licenseProject
+#       ]
+#  20 - exitStatus
+#  21 - execUid
+#  22 - execHome
+#  23 - execCwd
+#  24 - execUsername
+#  25 - jRusageUpdateTime
+#  26 - jType
+#  27 - parentGroup
+#  28 - jName
+#  29 - jobPriority
+#  30 - [ 0 - msgIdx
+#         1 - desc
+#         2 - userId
+#         3 - dataSize
+#         4 - postTime
+#         5 - dataStatus
+#         6 - userName
+#       ]
+#  31 - clusterId
+#  32 - detailReason
+#  33 - idleFactor
+#  34 - exceptMask
+#  35 - additionalInfo
+#  36 - exitInfo
+#  37 - warningTimePeriod
+#  38 - warningAction
+#  39 - chargedSAAP
+#  40 - execRusage
+#  41 - rsvInActive
+#  42 - Licenses
+#  43 - rusage
+#  44 - rlimits
+job_statuses = [
+'N/A'  , # 0     | ?
+'PEND' , # 1     | The job is pending. That is, it has not yet been started.
+'PSUSP', # 2     | The job has been suspended, either by its owner or the LSF administrator, while pending.
+'RUN'  , # 4     | The job is currently running.
+'SSUSP', # 8     | The job has been suspended by LSF, due to load conditions on the execution host or because run window of the job's queue has been closed.
+'USUSP', # 16    | The job has been suspended, either by its owner or the LSF administrator, while running.
+'EXIT' , # 32    | The job has terminated with a non-zero status.
+'DONE' , # 64    | The job has terminated with status of 0.
+'PDONE', # 128   | ?
+'PERR' , # 256   | ?
+'WAIT' , # 512   | For jobs submitted to a chunk job queue, members of a chunk job that are waiting to run.
+'UNKWN'  # 65536 | mbatchd has lost contact with the sbatchd on the host on which the job runs.
+]
+
+program_name = 'monitoring_update'
+program_dir = os.path.dirname(os.path.abspath(__file__)).rstrip(os.sep)
+#program_log_dir = program_dir + os.sep + 'log'
+#program_log = program_log_dir + os.sep + program_name + '.log'
+carbon_server = '127.0.0.1'
+carbon_port = 2003
+
+# Connect to LSF
+if(lsb_init(program_name) < 0):
+    print "Unable to connect to LSF"
+    sys.exit(1)
+
+# Perform LSF query (this may take some time due to LSF server's load)
+queues_info = {'local' : {}, 'grid' : {}}
+empty_queue = {
+    'pending'   : 0,
+    'running'   : 0,
+    'suspended' : 0,
+    'unknown'   : 0,
+    'wct'       : 0.0,
+    'cpt'       : 0.0
+}
+
+# Initialize monitoring data structure for each queue
+for queue_info in lsb_queueinfo():
+    for st in queues_info:
+        queues_info[st][queue_info[0]] = dict(empty_queue)
+
+# Iterate over jobs in the batch system
+for i in range(lsb_openjobinfo()):
+    job = lsb_readjobinfo(i)
+    jobqueue = job[19][1]
+    jobstat = job_status(job[2])
+
+    # If "from host" field begins with "ce", then we consider the job as coming from grid
+    submit_type = 'grid' if re.match(r'^ce.+', job[16]) else 'local'
+
+    # Initialize monitoring data structure for the queue of this job, if necessary (is it?)
+    for st in queues_info:
+        if not jobqueue in queues_info[st]:
+            queues_info[st][jobqueue] = dict(empty_queue)
+
+    # Determine CPU and Wall Clock time, if possible
+    cpt = float(job[43][2])
+    wct = float(job[25] - job[6])
+    if wct <= 0 or cpt <= 0 or not job[6]:
+        wct = cpt = 0.0
+
+    # Increment CPT and WCT
+    queues_info[submit_type][jobqueue]['wct'] += wct
+    queues_info[submit_type][jobqueue]['cpt'] += cpt
+
+    # Increment counter of job statuses per queue
+    if jobstat == 'PEND':
+        queues_info[submit_type][jobqueue]['pending'] += 1
+    elif jobstat == 'RUN':
+        queues_info[submit_type][jobqueue]['running'] += 1
+    elif jobstat.endswith('SUSP'):
+        queues_info[submit_type][jobqueue]['suspended'] += 1
+    elif jobstat == 'UNKWN':
+        queues_info[submit_type][jobqueue]['unknown'] += 1
+
+# End jobs iteration
+lsb_closejobinfo()
+
+# Connect carbon
+try:
+    carbon = CarbonClient(carbon_server, carbon_port)
+except:
+    print "Couldn't connect to %(server)s on port %(port)d, is carbon-agent.py running?" % { 'server': carbon_server, 'port': carbon_port }
+    sys.exit(2)
+
+# Carbon insertion
+for submit_type in queues_info:
+    for (name, counter) in queues_info[submit_type].iteritems():
+        carbon.insert('monitoring.%s.%s.pending' % (name, submit_type), counter['pending'])
+        carbon.insert('monitoring.%s.%s.running' % (name, submit_type), counter['running'])
+        carbon.insert('monitoring.%s.%s.suspended' % (name, submit_type), counter['suspended'])
+        carbon.insert('monitoring.%s.%s.unknown' % (name, submit_type), counter['unknown'])
+        carbon.insert('monitoring.%s.%s.wct' % (name, submit_type), counter['wct'])
+        carbon.insert('monitoring.%s.%s.cpt' % (name, submit_type), counter['cpt'])
