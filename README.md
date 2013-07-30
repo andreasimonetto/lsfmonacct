@@ -8,10 +8,10 @@ Backend
 -------
 
 The backend is composed of two parts, to follow [Graphite](http://graphite.readthedocs.org/)'s
-model/view pattern. The first part consist of data gathering (using LSF API through PyLSF) and
-Carbon feeding, the second one consist of an URL API to query the time series. While the former
-is mandatory, the latter is not, because you can directly use Graphite Webapp. However, in order
-to use the frontend, you also need the URL APIs.
+model/view pattern. The first part consist of data gathering (using LSF API through
+[PyLSF](https://github.com/gmccance/pylsf)) and Carbon feeding, the second one consist of an 
+URL API to query the time series. While the former is mandatory, the latter is not, because you
+can directly use Graphite Webapp. However, in order to use the frontend, you also need the URL APIs.
 
 ### Data gathering
 
