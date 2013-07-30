@@ -7,11 +7,11 @@ LSF monitoring & accounting
 Backend
 -------
 
-The backend is composed of two parts, to follow Graphite's model/view pattern. The first
-part consist of data gathering (using LSF API through PyLSF) and Carbon feeding, the second
-one consist of an URL API to query the time series. While the former is mandatory, the latter
-isn't, because you can directly use Graphite Webapp. However, in order to use the frontend,
-you also need the URL APIs.
+The backend is composed of two parts, to follow [Graphite](http://graphite.readthedocs.org/)'s
+model/view pattern. The first part consist of data gathering (using LSF API through PyLSF) and
+Carbon feeding, the second one consist of an URL API to query the time series. While the former
+is mandatory, the latter is not, because you can directly use Graphite Webapp. However, in order
+to use the frontend, you also need the URL APIs.
 
 ### Data gathering
 
@@ -35,10 +35,10 @@ of your LSF hosts, called `.hostsinfo.json` and having the following format:
 }
 ```
 
-The scripts `monitoring_update` and `accounting_update` gather the data and feed Carbon. The first
-insert monitoring data in time series prefixed with the string `monitoring.` and need to be called 
+The scripts `monitoring_update` and `accounting_update` gather the data and feed Carbon. The first one
+inserts monitoring data in time series prefixed with the string `monitoring.` and need to be called 
 quite often (every few minutes, depending on the time intervals you set in `carbon/storage-schemas.conf`).
-The second insert data in time series starting with `accounting.` and need to be called once a day
+The second inserts data in time series starting with `accounting.` and need to be called once a day
 (usually right after the daily LSF `.acct` log rotation). Only `accounting_update` take parameters,
 that are:
 * LSF log directory (mandatory)

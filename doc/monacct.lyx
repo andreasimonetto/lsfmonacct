@@ -1,0 +1,1268 @@
+#LyX 2.0 created this file. For more info see http://www.lyx.org/
+\lyxformat 413
+\begin_document
+\begin_header
+\textclass article
+\use_default_options true
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman default
+\font_sans default
+\font_typewriter default
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100
+\font_tt_scale 100
+
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize default
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_amsmath 1
+\use_esint 1
+\use_mhchem 1
+\use_mathdots 1
+\cite_engine basic
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\use_refstyle 1
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\quotes_language english
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Title
+Monitoring e accounting code LSF
+\end_layout
+
+\begin_layout Author
+Andrea Simonetto
+\begin_inset Newline newline
+\end_inset
+
+
+\begin_inset CommandInset href
+LatexCommand href
+name "andrea.simonetto@cnaf.infn.it"
+target "andrea.simonetto@cnaf.infn.it"
+type "mailto:"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Date
+21-Jun-2013
+\end_layout
+
+\begin_layout Section
+Panoramica
+\end_layout
+
+\begin_layout Standard
+Monitoring e accounting, pur presentando alcune similitudini superficiali,
+ sono task molto diversi.
+ Il monitoraggio tiene traccia dei job presenti nel batch system, ed è ottenuto
+ tramite una serie di istantanee prese ad intervalli di pochi minuti, che
+ permettono di conoscere lo stato del batch system momento per momento.
+ Per contro l'accounting effettua una analisi su base giornaliera, per conoscere
+ a posteriori le quantità di risorse consumate dai job.
+\end_layout
+
+\begin_layout Standard
+La differenza principale può essere evidenziata con un esempio: in una giornata
+ tipo l'intera farm lavora a pieno regime e ogni job è occupato per tutto
+ il tempo nell'elaborazione dei dati.
+ Il monitoraggio mostrerà un'elevata quantità di calcolo effettuato.
+ Supponendo che tutti i job restino in esecuzione superando la mezzanotte
+ (momento in cui viene calcolato l'accounting), non risulteranno job terminati
+ agli occhi dell'accounting, che quindi registrerà zero ore di calcolo effettuat
+e.
+ Quando i job termineranno, l'accounting registrerà le ore complessive di
+ calcolo di ogni job.
+ Nella pratica i job entrano ed escono dall'esecuzione a tempi che possono
+ essere considerati casuali, e pertanto la probabilità che nessun job termini
+ entro le 24 ore è trascurabile.
+ Tuttavia questo esempio limite mostra come monitoraggio e di accounting
+ forniscano informazioni diverse sul lavoro della farm e del batch system.
+\end_layout
+
+\begin_layout Standard
+Monitoraggio e accounting sono accomunati dal tipo dei dati che raccolgono:
+ 
+\begin_inset CommandInset href
+LatexCommand href
+name "serie temporali"
+target "http://en.wikipedia.org/wiki/Time_series"
+
+\end_inset
+
+.
+ Pertanto possono essere collocati sotto un unico framework per la raccolta,
+ l'elaborazione e la visualizzazione di serie temporali.
+ È stato scelto 
+\begin_inset CommandInset href
+LatexCommand href
+name "Graphite"
+target "http://graphite.wikidot.com/"
+
+\end_inset
+
+, un progetto Open Source sotto licenza 
+\begin_inset CommandInset href
+LatexCommand href
+name "Apache 2.0"
+target "http://www.apache.org/licenses/LICENSE-2.0.html"
+
+\end_inset
+
+.
+ I dati, sia come grafici, sia in vari formati testuali, sono esportati
+ grazie al server web 
+\begin_inset CommandInset href
+LatexCommand href
+name "httpd"
+target "http://httpd.apache.org/"
+
+\end_inset
+
+ di Apache.
+\end_layout
+
+\begin_layout Section
+API
+\end_layout
+
+\begin_layout Standard
+Le serie temporali raccolte da monitoring e accounting sono accessibili
+ dal web server 
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+http://farm.cr.cnaf.infn.it
+\end_layout
+
+\end_inset
+
+, richiedendo una risorsa tra quelle generate dalla seguente grammatica:
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+begin{center}
+\end_layout
+
+\begin_layout Plain Layout
+
+
+\backslash
+begin{tabular}{rcl}
+\end_layout
+
+\begin_layout Plain Layout
+
+Resource & ::= & 
+\backslash
+texttt/Type
+\backslash
+texttt/Submit
+\backslash
+texttt/Queue
+\backslash
+texttt/Period
+\backslash
+texttt.Unit[
+\backslash
+texttt-
+\backslash
+textit{W}
+\backslash
+texttt{x}
+\backslash
+textit{H}]
+\backslash
+texttt.Format 
+\backslash
+
+\backslash
+
+\end_layout
+
+\begin_layout Plain Layout
+
+Type & ::= & 
+\backslash
+texttt{monitoring} | 
+\backslash
+texttt{accounting} 
+\backslash
+
+\backslash
+
+\end_layout
+
+\begin_layout Plain Layout
+
+Submit & ::= & 
+\backslash
+texttt{grid} | 
+\backslash
+texttt{local} | 
+\backslash
+texttt{all} 
+\backslash
+
+\backslash
+
+\end_layout
+
+\begin_layout Plain Layout
+
+Queue & ::= & 
+\backslash
+textit{queue}[
+\backslash
+texttt{*}] | 
+\backslash
+texttt{each} | 
+\backslash
+texttt{all} 
+\backslash
+
+\backslash
+
+\end_layout
+
+\begin_layout Plain Layout
+
+Period & ::= & 
+\backslash
+textit{date}[
+\backslash
+texttt{-}
+\backslash
+textit{date}] | 
+\backslash
+textit{n}
+\backslash
+texttt{h} | 
+\backslash
+textit{n}
+\backslash
+texttt{d} | 
+\backslash
+textit{n}
+\backslash
+texttt{w} | 
+\backslash
+texttt{day} | 
+\backslash
+texttt{week} | 
+\backslash
+texttt{month} | 
+\backslash
+texttt{year} 
+\backslash
+
+\backslash
+
+\end_layout
+
+\begin_layout Plain Layout
+
+Unit & ::= & 
+\backslash
+texttt{jobs} | 
+\backslash
+texttt{efficiency} | 
+\backslash
+texttt{sec} | 
+\backslash
+texttt{hs06} | 
+\backslash
+texttt{pledge} 
+\backslash
+
+\backslash
+
+\end_layout
+
+\begin_layout Plain Layout
+
+Format & ::= & 
+\backslash
+texttt{png} | 
+\backslash
+texttt{json} | 
+\backslash
+texttt{csv} | 
+\backslash
+texttt{raw}
+\end_layout
+
+\begin_layout Plain Layout
+
+
+\backslash
+end{tabular}
+\end_layout
+
+\begin_layout Plain Layout
+
+
+\backslash
+end{center}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Zucchero sintattico:
+\end_layout
+
+\begin_layout Itemize
+/
+\emph on
+Type
+\emph default
+/
+\emph on
+Queue
+\emph default
+/...
+ → /
+\emph on
+Type
+\emph default
+/all/
+\emph on
+Queue
+\emph default
+/...
+\end_layout
+
+\begin_layout Itemize
+/
+\emph on
+Type
+\emph default
+/
+\emph on
+Period
+\emph default
+...
+ → /
+\emph on
+Type
+\emph default
+/all/all/
+\emph on
+Period
+\emph default
+...
+ 
+\end_layout
+
+\begin_layout Standard
+Ad ogni coda è associata una serie temporale.
+ L'intervallo di tempo è espresso dalla categoria 
+\emph on
+Period
+\emph default
+: i formati day, week, month e year corrispondono ai dati della giornata
+ corrente a partire dalla mezzanotte, della settima a partire da lunedì,
+ del mese a partire dal primo, dell'anno a partire dal primo Gennaio; i
+ formati 
+\family typewriter
+\emph on
+n
+\emph default
+h
+\family default
+, 
+\family typewriter
+\emph on
+n
+\emph default
+d
+\family default
+, 
+\family typewriter
+\emph on
+n
+\emph default
+w
+\family default
+ permettono di selezionare delle finestre temporali di dimensione costante,
+ nella fattispecie, le ultime n ore, giorni e settimane rispettivamente.
+ Infine il formato generico date permette di scegliere un momento preciso
+ con granularità di 1 minuto; se il secondo date è omesso, s'intende il
+ periodo tra la data scelta ed adesso.
+\end_layout
+
+\begin_layout Standard
+Le grandezze selezionabili per ogni serie (categoria 
+\emph on
+Unit
+\emph default
+) sono:
+\end_layout
+
+\begin_layout Itemize
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+texttt{jobs}
+\end_layout
+
+\end_inset
+
+: per il monitoraggio, il numero di job sottomessi e il loro stato all'interno
+ del batch system (running, pending, suspended, unknown), per l'accounting,
+ il numero di job completati e il loro stato di uscita (normale o killato
+ dal batch system); 
+\end_layout
+
+\begin_layout Itemize
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+texttt{efficiency}
+\end_layout
+
+\end_inset
+
+: efficienza delle code calcolata come "CPU Time / Wall Clock Time" (aka
+ CPT/WCT);
+\end_layout
+
+\begin_layout Itemize
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+texttt{sec}
+\end_layout
+
+\end_inset
+
+: secondi di calcolo (WCT e CPT);
+\end_layout
+
+\begin_layout Itemize
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+texttt{hs06}
+\end_layout
+
+\end_inset
+
+: 
+\begin_inset CommandInset href
+LatexCommand href
+name "HepSpec06"
+target "https://wiki.egi.eu/wiki/FAQ_HEP_SPEC06"
+
+\end_inset
+
+ utilizzati (WCT e CPT);
+\end_layout
+
+\begin_layout Itemize
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+texttt{pledge}
+\end_layout
+
+\end_inset
+
+: quantità di 
+\begin_inset CommandInset href
+LatexCommand href
+name "HepSpec06"
+target "https://wiki.egi.eu/wiki/FAQ_HEP_SPEC06"
+
+\end_inset
+
+ (WCT) correntemente assegnati ad ogni coda.
+ 
+\end_layout
+
+\begin_layout Standard
+Per il monitoraggio, non sono disponibili tutte le grandezze: solo jobs
+ e efficiency vengono raccolte.
+\end_layout
+
+\begin_layout Standard
+I tipi di sottomissione sono grid e local, a seconda che i job provengano
+ da un CE o da una UI.
+ Sia per le code che per i tipi di sottomissione, è presente una keyword
+ all che permette di ricevere la somma di tutte le serie corrispondenti
+ a una grandezza.
+\end_layout
+
+\begin_layout Standard
+Le code possono inoltre essere selezionate giustapponendo al loro nome un
+ asterisco, che significa "somma di tutte le serie aventi questo nome come
+ prefisso".
+ Infine la keyword each permette di ricevere i dati di ogni singola coda.
+ Quest'ultima possibilità è presente solo per le grandezze 
+\family typewriter
+sec
+\family default
+, 
+\family typewriter
+hs06
+\family default
+ e 
+\family typewriter
+pledge
+\family default
+.
+\end_layout
+
+\begin_layout Standard
+Ogni risorsa è disponibile in diversi formati:
+\end_layout
+
+\begin_layout Itemize
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+texttt{png}
+\end_layout
+
+\end_inset
+
+: grafico dei dati come immagine PNG di dimensione WxH (800x600 di default);
+\end_layout
+
+\begin_layout Itemize
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+texttt{json}
+\end_layout
+
+\end_inset
+
+: serie di dati come 
+\begin_inset CommandInset href
+LatexCommand href
+name "oggetto json"
+target "http://www.json.org/"
+
+\end_inset
+
+;
+\end_layout
+
+\begin_layout Itemize
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+texttt{csv}
+\end_layout
+
+\end_inset
+
+: formato CSV, utilizzabile, ad esempio, per l'importazione in un foglio
+ di calcolo;
+\end_layout
+
+\begin_layout Itemize
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+texttt{raw}
+\end_layout
+
+\end_inset
+
+: formato testuale personalizzato.
+ Le serie sono ritornate per riga, ognuna avente il seguente formato:
+\end_layout
+
+\begin_layout Quote
+
+\family typewriter
+target_name,start_timestamp,end_timestamp,series_step|[data]*
+\end_layout
+
+\begin_layout Standard
+Alcuni esempi:
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+http://farm.cr.cnaf.infn.it/monitoring/week.jobs.png
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+http://farm.cr.cnaf.infn.it/monitoring/grid/all/week.efficiency.png
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+http://farm.cr.cnaf.infn.it/monitoring/ams*/week.efficiency.png
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+http://farm.cr.cnaf.infn.it/accounting/year.hs06.png
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+http://farm.cr.cnaf.infn.it/accounting/20130501-20130531.efficiency.png 
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Sono infine presenti alcuni report "preconfezionati" alle pagine:
+\end_layout
+
+\begin_layout Itemize
+/
+\emph on
+Type
+\emph default
+/
+\emph on
+Queue
+\emph default
+/
+\emph on
+Period
+\emph default
+.html
+\end_layout
+
+\begin_layout Itemize
+/
+\emph on
+Type
+\emph default
+/
+\emph on
+Period
+\emph default
+.html 
+\end_layout
+
+\begin_layout Standard
+ad esempio:
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+http://farm.cr.cnaf.infn.it/monitoring/day.html
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+http://farm.cr.cnaf.infn.it/monitoring/week.html
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+http://farm.cr.cnaf.infn.it/monitoring/ams*/week.html
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+http://farm.cr.cnaf.infn.it/accounting/year.html 
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Architettura
+\end_layout
+
+\begin_layout Standard
+Tutto il codice è mantenuto nel repository 
+\begin_inset CommandInset href
+LatexCommand href
+name "Subversion"
+target "http://subversion.apache.org/"
+
+\end_inset
+
+:
+\end_layout
+
+\begin_layout Quote
+
+\family typewriter
+https://svn.forge.cnaf.infn.it/svn/farming/simtools/monacct
+\end_layout
+
+\begin_layout Standard
+ed è installato in 
+\family typewriter
+/opt/farm
+\family default
+ su 
+\family typewriter
+farm.cr.cnaf.infn.it
+\family default
+.
+ Gli script Python 
+\family typewriter
+update_monitoring
+\family default
+ e 
+\family typewriter
+update_accounting
+\family default
+ raccolgono i dati dal batch system e li inviano a 
+\begin_inset CommandInset href
+LatexCommand href
+name "Carbon"
+target "https://graphite.readthedocs.org/en/latest/carbon-daemons.html"
+
+\end_inset
+
+, il demone del progetto 
+\begin_inset CommandInset href
+LatexCommand href
+name "Graphite"
+target "http://graphite.wikidot.com/"
+
+\end_inset
+
+ responsabile dell'immagazzinamento delle serie temporali.
+ Carbon e Graphite hanno le rispettive configurazioni nelle cartelle 
+\family typewriter
+/etc/carbon/
+\family default
+ e 
+\family typewriter
+/etc/graphite-web/
+\family default
+.
+ In particolare Carbon salva i dati delle serie temporali in 
+\family typewriter
+/var/lib/carbon/whisper/
+\family default
+.
+\end_layout
+
+\begin_layout Standard
+La schedulazione dei questi task è controllata da 
+\family typewriter
+crond
+\family default
+, tramite il file 
+\family typewriter
+conf/farm.cron
+\family default
+:
+\end_layout
+
+\begin_layout Quote
+
+\family typewriter
+LSF_SERVERDIR=/usr/share/lsf/7.0/linux2.6-glibc2.3-x86_64/etc
+\begin_inset Newline newline
+\end_inset
+
+LSF_LOGDIR=/usr/share/lsf/work/tier1-lsf/logdir
+\begin_inset Newline newline
+\end_inset
+
+LD_LIBRARY_PATH=/usr/share/lsf/7.0/linux2.6-glibc2.3-x86_64/lib
+\begin_inset Newline newline
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+# Update monitoring stat every 3 minutes
+\begin_inset Newline newline
+\end_inset
+
+*/3 * * * * root /opt/farm/monitoring_update 2>/dev/null
+\begin_inset Newline newline
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+# Update accounting stat once a day
+\begin_inset Newline newline
+\end_inset
+
+10 02 * * * lsfadmin /opt/farm/accounting_update $LSF_LOGDIR
+\end_layout
+
+\begin_layout Standard
+Nella sottocartella 
+\family typewriter
+web/
+\family default
+ si trova il codice PHP che si occupa di esporre le API attraverso il web
+ server Apache (nella stessa cartella è presente il 
+\family typewriter
+.htaccess
+\family default
+ che filtra e invia le richieste allo script principale, 
+\family typewriter
+api.php
+\family default
+.
+ Gli altri script PHP 
+\family typewriter
+{accounting,monitoring}_{queue,all}.php
+\family default
+ gestiscono la visualizzazione delle pagine "preconfezionate", assieme allo
+ script 
+\family typewriter
+js/customgraph.js
+\family default
+.
+\end_layout
+
+\begin_layout Standard
+Il virtual host 
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+http://farm.cr.cnaf.infn.it/
+\end_layout
+
+\end_inset
+
+ è configurato in 
+\family typewriter
+/etc/httpd/conf.d/farm.conf
+\family default
+ in questo modo:
+\end_layout
+
+\begin_layout Quote
+\paragraph_spacing other 0.40000000000000002
+
+\family typewriter
+<VirtualHost *:80>
+\end_layout
+
+\begin_layout Quote
+\paragraph_spacing other 0.40000000000000002
+
+\family typewriter
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+hspace{1.5em}
+\end_layout
+
+\end_inset
+
+ServerName farm.cr.cnaf.infn.it
+\end_layout
+
+\begin_layout Quote
+\paragraph_spacing other 0.40000000000000002
+
+\family typewriter
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+hspace{1.5em}
+\end_layout
+
+\end_inset
+
+DocumentRoot "/opt/farm/web"
+\end_layout
+
+\begin_layout Quote
+\paragraph_spacing other 0.40000000000000002
+
+\family typewriter
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+hspace{1.5em}
+\end_layout
+
+\end_inset
+
+<Directory "/opt/farm/web">
+\end_layout
+
+\begin_layout Quote
+\paragraph_spacing other 0.40000000000000002
+
+\family typewriter
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+hspace{3em}
+\end_layout
+
+\end_inset
+
+Options Indexes FollowSymLinks
+\end_layout
+
+\begin_layout Quote
+\paragraph_spacing other 0.40000000000000002
+
+\family typewriter
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+hspace{3em}
+\end_layout
+
+\end_inset
+
+AllowOverride All
+\end_layout
+
+\begin_layout Quote
+\paragraph_spacing other 0.40000000000000002
+
+\family typewriter
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+hspace{3em}
+\end_layout
+
+\end_inset
+
+Order allow,deny
+\end_layout
+
+\begin_layout Quote
+\paragraph_spacing other 0.40000000000000002
+
+\family typewriter
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+hspace{3em}
+\end_layout
+
+\end_inset
+
+Allow from all
+\end_layout
+
+\begin_layout Quote
+\paragraph_spacing other 0.40000000000000002
+
+\family typewriter
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+hspace{1.5em}
+\end_layout
+
+\end_inset
+
+</Directory>
+\end_layout
+
+\begin_layout Quote
+\paragraph_spacing other 0.40000000000000002
+
+\family typewriter
+</VirtualHost>
+\end_layout
+
+\begin_layout Standard
+Graphite dispone di una propria interfaccia web, accessibile tramite il
+ 
+\shape italic
+CNAME
+\shape default
+ 
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+http://graphite-farm.cr.cnaf.infn.it/
+\end_layout
+
+\end_inset
+
+, e immagazzina i dati degli utenti, dei grafici salvati e delle dashboard
+ in un database 
+\begin_inset CommandInset href
+LatexCommand href
+name "SQLite"
+target "http://www.sqlite.org/"
+
+\end_inset
+
+ (in 
+\family typewriter
+/var/lib/graphite-web/graphite.db
+\family default
+).
+\end_layout
+
+\begin_layout Standard
+Tutti i grafici prodotti (anche quelli esportati in formato testuale) vengono
+ salvati in cache per 3 ore, grazie al demone 
+\begin_inset CommandInset href
+LatexCommand href
+name "memcached"
+target "http://memcached.org/"
+
+\end_inset
+
+.
+ Le cache sono indicizzate per URL, quindi per avere 
+\series bold
+dati freschi
+\series default
+ bisogna specificare il periodo con un formato tra 
+\family typewriter
+day
+\family default
+, 
+\family typewriter
+week
+\family default
+, 
+\family typewriter
+\shape italic
+date
+\family default
+\shape default
+ o 
+\family typewriter
+\shape italic
+date-date
+\family default
+\shape default
+ esplicitando 
+\series bold
+ore e minuti
+\series default
+ oppure uno tra 
+\family typewriter
+\emph on
+n
+\emph default
+h
+\family default
+, 
+\family typewriter
+\emph on
+n
+\emph default
+d
+\family default
+, 
+\family typewriter
+\emph on
+n
+\emph default
+w
+\family default
+.
+ 
+\end_layout
+
+\end_body
+\end_document
